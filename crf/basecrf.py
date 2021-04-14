@@ -23,8 +23,8 @@ def logsumexp(a):
 def sample(x):
     cdf = x.cumsum()
     Z = cdf[-1]
-    u = uniform()
-    return cdf.searchsorted(u * Z)
+    u = uniform()#生成随机数
+    return cdf.searchsorted(u * Z)#将进行数组索引
 
 
 class CRF(object):
@@ -33,31 +33,36 @@ class CRF(object):
     """
 
     def __init__(self, K, M):
-        self.W = zeros(M)   # weight vector will go here once we allocate it
-        self.K = K          # label domain size; filled in when domain is frozen.
+        self.W = zeros(M)   # weight vector will go here once we allocate it 分配权重后会在这里出现
+        self.K = K          # label domain size; filled in when domain is frozen.标签域大小
 
-    def log_potentials(self, x):
+    def log_potentials(self, x):#建立初始状态矩阵和转移概率矩阵
         """
         Calculate a potential tables for model given current parameters.
         Note: indexing of g is off-by-one
         """
-        N = x.N; K = self.K; W = self.W; f = x.feature_table
-        g0 = empty(K)
-        g = empty((N-1,K,K))
+        N = x.N;#一个句子分词后为N个
+        K = self.K;
+        W = self.W;
+        f = x.feature_table  #？？？
+        g0 = empty(K)#初始状态（矩阵）
+        g = empty((N-1,K,K))#初始转移概率矩阵
         for y in range(K):
             g0[y] = W[f[0,None,y]].sum()
+            
+        #转移矩阵    
         for t in range(1,N):
             for y in range(K):
                 for yp in range(K):
                     g[t-1,yp,y] = W[f[t,yp,y]].sum()
         return (g0, g)
 
-    def __call__(self, x):
+    def __call__(self, x):#判断x的标记
         "Infer the most-likely labeling of ``x``."
-        self.preprocess([x])
+        self.preprocess([x]) 
         return self.argmax(x)
 
-    def argmax(self, x):
+    def argmax(self, x):# 寻找最优路径
         """
         Find the most-likely assignment to labels given parameters using the
         Viterbi algorithm.
@@ -65,7 +70,7 @@ class CRF(object):
         N = x.N
         K = self.K
         (g0, g) = self.log_potentials(x)
-        B = ones((N,K), dtype=int32) * -1
+        B = ones((N,K), dtype=int32) * -1  #存储最优路径
         # compute max-marginals and backtrace matrix
         V = g0
         for t in range(1,N):
@@ -86,8 +91,10 @@ class CRF(object):
 
     def likelihood(self, x):
         """ log-likelihood of ``x`` under model. """
-        N = x.N; K = self.K; W = self.W
-        (g0, g) = self.log_potentials(x)
+        N = x.N;#一共对N个词进行标注
+        K = self.K; #K个label
+        W = self.W #权值
+        (g0, g) = self.log_potentials(x) #转移矩阵
         a = self.forward(g0,g,N,K)
         logZ = logsumexp(a[N-1,:])
         return sum(W[k] for k in x.target_features) - logZ
@@ -95,18 +102,18 @@ class CRF(object):
     def forward(self, g0, g, N, K):
         """
         Calculate matrix of forward unnormalized log-probabilities.
-
         a[i,y] log of the sum of scores of all sequences from 0 to i where
         the label at position i is y.
         """
         a = zeros((N,K))
-        a[0,:] = g0
+        a[0,:] = g0 
         for t in range(1,N):
             ayp = a[t-1,:]
             for y in range(K):
-                a[t,y] = logsumexp(ayp + g[t-1,:,y])
-        return a
+                a[t,y] = logsumexp(ayp + g[t-1,:,y]) 
+        return a #???
 
+    
     def backward(self, g, N, K):
         "Calculate matrix of backward unnormalized log-probabilities."
         b = zeros((N,K))
